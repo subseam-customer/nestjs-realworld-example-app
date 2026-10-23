@@ -1,3 +1,4 @@
+import { HttpException, HttpStatus } from '@nestjs/common';
 import { Injectable } from '@nestjs/common';
 import { EntityManager, EntityRepository, FilterQuery, type Loaded } from '@mikro-orm/mysql';
 import { InjectRepository } from '@mikro-orm/nestjs';
@@ -89,7 +90,10 @@ export class ArticleService {
 
   async deleteComment(user: Viewer, slug: string, id: number): Promise<IArticleRO> {
     const article = await this.articleRepository.findOneOrFail({ slug }, { populate: ['author'] });
-    const comment = this.commentRepository.getReference(id);
+    const comment = await this.commentRepository.findOneOrFail(id, { populate: ['author'] });
+    if (comment.author.id !== user.id) {
+      throw new HttpException('Only the author may delete this comment.', HttpStatus.FORBIDDEN);
+    }
 
     if (article.comments.contains(comment)) {
       article.comments.remove(comment);
