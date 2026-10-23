@@ -1,3 +1,4 @@
+import { HttpException, HttpStatus } from '@nestjs/common';
 import { Injectable } from '@nestjs/common';
 import { EntityManager, EntityRepository, FilterQuery, type Loaded } from '@mikro-orm/mysql';
 import { InjectRepository } from '@mikro-orm/nestjs';
@@ -141,13 +142,20 @@ export class ArticleService {
 
   async update(user: Viewer, slug: string, articleData: any): Promise<IArticleRO> {
     const article = await this.articleRepository.findOneOrFail({ slug }, { populate: ['author'] });
+    if (article.author.id !== user.id) {
+      throw new HttpException('Only the author may change this article.', HttpStatus.FORBIDDEN);
+    }
     this.em.assign(article, articleData);
     await this.em.flush();
 
     return { article: article.toJSON(user) };
   }
 
-  async delete(slug: string) {
+  async delete(user: Viewer, slug: string) {
+    const article = await this.articleRepository.findOneOrFail({ slug }, { populate: ['author'] });
+    if (article.author.id !== user.id) {
+      throw new HttpException('Only the author may delete this article.', HttpStatus.FORBIDDEN);
+    }
     return this.articleRepository.nativeDelete({ slug });
   }
 }
